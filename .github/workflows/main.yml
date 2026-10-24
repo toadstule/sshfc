@@ -5,6 +5,7 @@ on:
     branches: [main]
   release:
     types: [created]
+  workflow_dispatch:
 
 jobs:
   build:
@@ -64,5 +65,5 @@ jobs:
         with:
           name: python-package-distributions-3.14
           path: dist/
-      - name: Publish distribution to PyPI
+      - name: Publi``sh distribution to PyPI
         uses: pypa/gh-action-pypi-publish@release/v1
