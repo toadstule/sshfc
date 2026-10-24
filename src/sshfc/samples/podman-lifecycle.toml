@@ -1,0 +1,23 @@
+# Podman, state-changing: start, stop and restart containers.
+
+# Shared with podman-readonly.toml; it must be identical in every file that declares it.
+[commands.podman]
+help = "Manage pods, containers and images."
+run = "/usr/bin/podman"
+
+[commands."podman restart"]
+help = "Restart a container."
+positionals = [{ name = "container", help = "Container name or ID.", validator = "container_name" }]
+accept = [{ command = "podman restart web-1", argv = "/usr/bin/podman restart -- web-1" }]
+reject = ["podman restart", "podman restart --all", "podman restart web-1 web-2"]
+
+[commands."podman start"]
+help = "Start a container."
+positionals = [{ name = "container", help = "Container name or ID.", validator = "container_name" }]
+accept = [{ command = "podman start web-1", argv = "/usr/bin/podman start -- web-1" }]
+
+[commands."podman stop"]
+help = "Stop a container."
+positionals = [{ name = "container", help = "Container name or ID.", validator = "container_name" }]
+accept = [{ command = "podman stop web-1", argv = "/usr/bin/podman stop -- web-1" }]
+reject = ["podman stop 'web;id'"]

@@ -1,0 +1,66 @@
+[build-system]
+build-backend = "uv_build"
+requires = ["uv_build<0.14"]
+
+[dependency-groups]
+dev = [
+    "mypy>=2.4.0",
+    "pytest-cov>=7.1",
+    "pytest>=9.1.1",
+    "ruff>=0.17.1",
+    "uv_build",
+]
+
+[project]
+authors = [{name = "Steve Jibson", email = "steve@jibson.com"}]
+classifiers = [
+    "Development Status :: 4 - Beta",
+    "Programming Language :: Python",
+]
+description = "Force command validator for SSH."
+dependencies = []
+license = "MIT"
+license-files = ["LICENSE"]
+name = "sshfc"
+readme = "README.md"
+requires-python = ">=3.12"
+version = "0.1.0"
+
+[project.scripts]
+sshfc = "sshfc.cli:main"
+
+[project.urls]
+Homepage = "https://bitbucket.org/toadstule/sshfc"
+Documentation = "https://bitbucket.org/toadstule/sshfc/README.md"
+
+[tool.mypy]
+ignore_missing_imports = true
+implicit_reexport = true
+install_types = true
+non_interactive = true
+pretty = true
+strict = true
+
+[tool.ruff]
+line-length = 120  # Mainly due to the additional length caused by type hinting.
+
+[tool.ruff.lint]
+ignore = [
+    "COM812",  # This gets upset when there isn't a trailing comma in a multi-line split string.
+               # The formatter will add/verify the trailing commas.
+    "T201",    # This check prevents the use of print() -- which would be fine for non-interactive programs.
+]
+select = [
+    "ALL",   # All the checks.
+    "D401",  # Use imparative mood for comments. The "google" pydocstyle convention disables this, so we'll re-enable it.
+]
+
+[tool.ruff.lint.per-file-ignores]
+"tests/*.py" = [
+    "S101",    # Allow tests to use assert statements.
+    "SLF001",  # Allow tests to access private members.
+    "PLR2004", # Allow tests to compare against literal values (e.g. exit statuses).
+]
+
+[tool.ruff.lint.pydocstyle]
+convention = "google"
