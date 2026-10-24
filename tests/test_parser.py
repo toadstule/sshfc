@@ -85,13 +85,13 @@ def test_render(root: CommandRoot, cmd_str: str, expected_argv: list[str]) -> No
 @pytest.mark.parametrize(
     ("cmd_str", "expected_error"),
     [
-        ("", r"the following arguments are required: command \(choose from spam, solo\)$"),
-        ("eggs", r"argument command: invalid choice: 'eggs' \(choose from spam, solo\)$"),
+        ("", r"the following arguments are required: command \(choose from '?spam'?, '?solo'?\)$"),
+        ("eggs", r"argument command: invalid choice: 'eggs' \(choose from '?spam'?, '?solo'?\)$"),
         ("spam 'unbalanced", r"No closing quotation$"),
         ("solo -x", r"solo -- unrecognized arguments: -x$"),
         ("solo --help-me", r"solo -- unrecognized arguments: --help-me$"),
-        ("spam", r"spam -- the following arguments are required: subcommand \(choose from eggs, bare, strict\)$"),
-        ("spam eggs", r"spam eggs -- the following arguments are required: subcommand \(choose from ham\)$"),
+        ("spam", r"spam -- the following arguments are required: subcommand \(choose from '?eggs'?, '?bare'?, '?strict'?\)$"),
+        ("spam eggs", r"spam eggs -- the following arguments are required: subcommand \(choose from '?ham'?\)$"),
         ("spam beans", r"spam -- argument subcommand: invalid choice: 'beans'"),
         ("spam eggs beans", r"spam eggs -- argument subcommand: invalid choice: 'beans'"),
         ("spam --bad", r"spam -- unrecognized arguments: --bad$"),
