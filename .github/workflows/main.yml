@@ -65,5 +65,5 @@ jobs:
         with:
           name: python-package-distributions-3.14
           path: dist/
-      - name: Publi``sh distribution to PyPI
+      - name: Publish distribution to PyPI
         uses: pypa/gh-action-pypi-publish@release/v1
