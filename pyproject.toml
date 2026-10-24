@@ -16,6 +16,10 @@ authors = [{name = "Steve Jibson", email = "steve@jibson.com"}]
 classifiers = [
     "Development Status :: 4 - Beta",
     "Programming Language :: Python",
+    "Programming Language :: Python :: 3.12",
+    "Programming Language :: Python :: 3.13",
+    "Programming Language :: Python :: 3.14",
+    "Topic :: Utilities"
 ]
 description = "Force command validator for SSH."
 dependencies = []
@@ -30,8 +34,7 @@ version = "0.1.0"
 sshfc = "sshfc.cli:main"
 
 [project.urls]
-Homepage = "https://bitbucket.org/toadstule/sshfc"
-Documentation = "https://bitbucket.org/toadstule/sshfc/README.md"
+Repository = "https://github.com/toadstule/sshfc"
 
 [tool.mypy]
 ignore_missing_imports = true

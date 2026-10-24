@@ -1,0 +1,68 @@
+name: Makefile CI
+
+on:
+  pull_request:
+    branches: [main]
+  release:
+    types: [created]
+
+jobs:
+  build:
+
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        python-version: ["3.12", "3.13", "3.14"]
+
+    steps:
+    - name: Check out
+      uses: actions/checkout@v7
+      with:
+        fetch-depth: 0  # Needed for version detection
+
+    - name: Install uv
+      uses: astral-sh/setup-uv@v8.2.0
+      with:
+        enable-cache: true
+        cache-dependency-glob: |
+          **/pyproject.toml
+          **/.python_version
+          **/uv.lock
+        version: latest
+
+    - name: Set up Python ${{ matrix.python-version }}
+      run: uv python install ${{ matrix.python-version }}
+
+    - name: Install dependencies
+      run: make dep
+
+    - name: Build package
+      run: make
+
+    - name: Check
+      run: make check
+
+    - name: Store the distribution packages
+      uses: actions/upload-artifact@v7
+      with:
+        name: python-package-distributions-${{ matrix.python-version }}
+        path: dist/
+
+  publish-to-pypi:
+    name: Publish to PyPI
+    if: startsWith(github.ref, 'refs/tags/v')  # Only publish on tag pushes.
+    needs: build
+    runs-on: ubuntu-latest
+    environment:
+      name: pypi
+      url: https://pypi.org/p/sshfc
+    permissions:
+      id-token: write
+    steps:
+      - name: Download the distribution packages
+        uses: actions/download-artifact@v8
+        with:
+          name: python-package-distributions-3.14
+          path: dist/
+      - name: Publish distribution to PyPI
+        uses: pypa/gh-action-pypi-publish@release/v1
