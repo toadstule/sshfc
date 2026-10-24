@@ -1,0 +1,74 @@
+# Podman, read-only: list and inspect containers, images and pods; resource usage; processes.
+
+# Shared with podman-lifecycle.toml; it must be identical in every file that declares it.
+[commands.podman]
+help = "Manage pods, containers and images."
+run = "/usr/bin/podman"
+reject = ["podman", "podman rm web-1", "podman --remote ps"]
+
+[commands."podman images"]
+help = "List images."
+accept = [{ command = "podman images", argv = "/usr/bin/podman images" }]
+
+[commands."podman inspect"]
+help = "Display the raw configuration of a container, image or pod."
+positionals = [{ name = "name", help = "Container, image or pod to inspect.", validator = "container_name" }]
+accept = [{ command = "podman inspect web-1", argv = "/usr/bin/podman inspect -- web-1" }]
+reject = ["podman inspect", "podman inspect --format=x web-1", "podman inspect 'web-1;id'"]
+
+[commands."podman pod"]
+help = "Manage pods."
+reject = ["podman pod", "podman pod rm mypod"]
+
+[commands."podman pod ps"]
+help = "List pods."
+accept = [{ command = "podman pod ps", argv = "/usr/bin/podman pod ps" }]
+
+[commands."podman pod inspect"]
+help = "Inspect a pod."
+positionals = [{ name = "pod", help = "Pod to inspect.", validator = "container_name" }]
+accept = [{ command = "podman pod inspect mypod", argv = "/usr/bin/podman pod inspect -- mypod" }]
+
+[commands."podman ps"]
+help = "List containers."
+accept = [
+    { command = "podman ps", argv = "/usr/bin/podman ps" },
+    { command = "podman ps --format '{{.ID}}  {{.Image}}  {{.Labels}}  {{.Mounts}}'", argv = "/usr/bin/podman ps --format '{{.ID}}  {{.Image}}  {{.Labels}}  {{.Mounts}}'" },
+    { command = "podman ps --format='{{ .ID }}'", argv = "/usr/bin/podman ps --format '{{.ID}}'" },
+]
+reject = ["podman ps --all", "podman ps --format '{{.Command}}'", "podman ps --format '{{json .}}'"]
+
+# Deliberately excluded: Command (container args often carry secrets). Labels can hold secrets too (e.g. reverse-proxy
+# basic-auth hashes); remove it if that matters on your hosts.
+[commands."podman ps".options."--format"]
+help = "Go template using only {{.Field}} placeholders."
+go_template = [
+    "CreatedAt",
+    "CreatedHuman",
+    "ID",
+    "Image",
+    "ImageID",
+    "Labels",
+    "Mounts",
+    "Names",
+    "Networks",
+    "Pod",
+    "PodName",
+    "Ports",
+    "RunningFor",
+    "State",
+    "Status",
+]
+
+[commands."podman stats"]
+help = "Display container resource usage statistics."
+# A live stream never ends, which would leave the SSH session hanging, so --no-stream is required. The user types it,
+# so what runs is exactly what they asked for.
+flags."--no-stream" = { help = "Print one snapshot instead of a live stream (required).", required = true }
+accept = [{ command = "podman stats --no-stream", argv = "/usr/bin/podman stats --no-stream" }]
+reject = ["podman stats"]
+
+[commands."podman top"]
+help = "Display the running processes of a container."
+positionals = [{ name = "container", help = "Container name or ID.", validator = "container_name" }]
+accept = [{ command = "podman top web-1", argv = "/usr/bin/podman top -- web-1" }]

@@ -1,0 +1,17 @@
+# Basic system information: hostname, pwd, whoami.
+
+[commands.hostname]
+help = "Show the system's host name."
+run = "/usr/bin/hostname"
+accept = [{ command = "hostname", argv = "/usr/bin/hostname" }]
+reject = ["hostname newname", "hostname -F /etc/shadow"]
+
+[commands.pwd]
+help = "Print the current working directory."
+run = "/usr/bin/pwd"
+accept = [{ command = "pwd", argv = "/usr/bin/pwd" }]
+
+[commands.whoami]
+help = "Print the user name associated with the current effective user ID."
+run = "/usr/bin/whoami"
+accept = [{ command = "whoami", argv = "/usr/bin/whoami" }]
