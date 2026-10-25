@@ -87,6 +87,10 @@ def check_ownership(path: Path, trusted_uids: Collection[int] = (_ROOT_UID,)) ->
 
     Each must be owned by a trusted user (root) and not writable by group or others. A world-writable ancestor is
     accepted only if it has the sticky bit (e.g. /tmp), since others can't then replace what's inside it.
+
+    Args:
+        path: The path to check.
+        trusted_uids: The UIDs that are considered trusted.
     """
     try:
         real = path.resolve(strict=True)
@@ -105,7 +109,16 @@ def check_ownership(path: Path, trusted_uids: Collection[int] = (_ROOT_UID,)) ->
 
 
 def load_policy(path: Path, *, check_owners: bool = True, trusted_uids: Collection[int] = (_ROOT_UID,)) -> Policy:
-    """Load, merge, and validate the policy at path; raise ConfigError on any problem."""
+    """Load, merge, and validate the policy at path; raise ConfigError on any problem.
+
+    Args:
+        path: The path to the policy file or directory.
+        check_owners: Whether to check the ownership of the policy file or directory.
+        trusted_uids: The UIDs that are considered trusted.
+
+    Returns:
+        The loaded policy.
+    """
     files = policy_files(path)
     if check_owners:
         check_ownership(path, trusted_uids)
@@ -134,7 +147,14 @@ def load_policy(path: Path, *, check_owners: bool = True, trusted_uids: Collecti
 
 
 def _read(file: Path) -> dict[str, Any]:
-    """Read one policy file and return its commands table."""
+    """Read one policy file and return its commands table.
+
+    Args:
+        file: The path to the policy file.
+
+    Returns:
+        The commands table from the policy file.
+    """
     try:
         with file.open("rb") as f:
             data = tomllib.load(f)
@@ -150,7 +170,14 @@ def _read(file: Path) -> dict[str, Any]:
 
 
 def _merge(entries: dict[str, _Entry], key: str, table: Any, source: str) -> None:  # noqa: ANN401
-    """Merge one file's definition of a command path into entries."""
+    """Merge one file's definition of a command path into entries.
+
+    Args:
+        entries: The entries to merge into.
+        key: The command path to merge.
+        table: The table to merge.
+        source: The source of the table.
+    """
     where = f"{source}: commands.{key!r}"
     names = key.split(" ")
     if not all(_NAME.fullmatch(n) for n in names):
@@ -176,7 +203,15 @@ def _merge(entries: dict[str, _Entry], key: str, table: Any, source: str) -> Non
 
 
 def _build(entries: dict[str, _Entry], key: str) -> Command:
-    """Build the Command for a path, and its subcommands, from merged entries."""
+    """Build the Command for a path, and its subcommands, from merged entries.
+
+    Args:
+        entries: The entries to build from.
+        key: The command path to build.
+
+    Returns:
+        The built Command.
+    """
     entry = entries[key]
     where = _where(entry, key)
     table = entry.definition
@@ -215,7 +250,15 @@ def _build(entries: dict[str, _Entry], key: str) -> Command:
 
 
 def _validated_arg(arg: Any, where: str) -> tuple[str, Validator]:  # noqa: ANN401
-    """Return (help, validator) for an option or positional table."""
+    """Return (help, validator) for an option or positional table.
+
+    Args:
+        arg: The argument to validate.
+        where: The location of the argument.
+
+    Returns:
+        A tuple of (help, validator).
+    """
     table = _as_table(arg, where)
     _check_keys(table, frozenset({"help", "description"}) | _VALIDATOR_KEYS, where)
     help_ = _str(table, "help", where, required=True)
@@ -251,15 +294,31 @@ def _validated_arg(arg: Any, where: str) -> tuple[str, Validator]:  # noqa: ANN4
 
 
 def _accept_example(example: Any, where: str) -> str | tuple[str, str]:  # noqa: ANN401
-    """Return an accept example: a command line, or a (command line, expected argv) pair."""
+    """Return an accept example: a command line, or a (command line, expected argv) pair.
+
+    Args:
+        example: The example to validate.
+        where: The location of the example.
+
+    Returns:
+        A tuple of (command line, expected argv) or just the command line.
+    """
     if isinstance(example, dict):
         _check_keys(example, frozenset({"command", "argv"}), where)
-        return (_str(example, "command", where, required=True), _str(example, "argv", where, required=True))
+        return _str(example, "command", where, required=True), _str(example, "argv", where, required=True)
     return _example_str(example, where)
 
 
 def _example_str(example: Any, where: str) -> str:  # noqa: ANN401
-    """Return an example command line."""
+    """Return an example command line.
+
+    Args:
+        example: The example to validate.
+        where: The location of the example.
+
+    Returns:
+        The example command line.
+    """
     if not isinstance(example, str):
         msg = f"{where}: examples must be strings (or, for accept, {{ command = ..., argv = ... }} tables)"
         raise ConfigError(msg)
@@ -267,19 +326,47 @@ def _example_str(example: Any, where: str) -> str:  # noqa: ANN401
 
 
 def _where(entry: _Entry, key: str) -> str:
-    """Describe where a command is defined, for error messages."""
+    """Describe where a command is defined, for error messages.
+
+    Args:
+        entry: The entry to describe.
+        key: The command path.
+
+    Returns:
+        A string describing where the command is defined.
+    """
     return f"{', '.join(entry.sources)}: commands.{key!r}"
 
 
 def _check_keys(table: dict[str, Any], allowed: frozenset[str], where: str) -> None:
-    """Reject unknown keys, so a typo can't be silently ignored."""
+    """Reject unknown keys, so a typo can't be silently ignored.
+
+    Args:
+        table: The table to check.
+        allowed: The allowed keys.
+        where: The location of the table.
+
+    Raises:
+        ConfigError: If there are unknown keys.
+    """
     if unknown := sorted(table.keys() - allowed):
         msg = f"{where}: unknown key(s) {', '.join(map(repr, unknown))} (allowed: {', '.join(sorted(allowed))})"
         raise ConfigError(msg)
 
 
 def _as_table(value: Any, where: str) -> dict[str, Any]:  # noqa: ANN401
-    """Return value if it's a table."""
+    """Return value if it's a table.
+
+    Args:
+        value: The value to check.
+        where: The location of the value.
+
+    Returns:
+        The value if it's a table.
+
+    Raises:
+        ConfigError: If the value is not a table.
+    """
     if not isinstance(value, dict):
         msg = f"{where}: must be a table"
         raise ConfigError(msg)
@@ -287,12 +374,33 @@ def _as_table(value: Any, where: str) -> dict[str, Any]:  # noqa: ANN401
 
 
 def _table(table: dict[str, Any], key: str, where: str) -> dict[str, Any]:
-    """Return an optional sub-table."""
+    """Return an optional sub-table.
+
+    Args:
+        table: The table to check.
+        key: The key to check.
+        where: The location of the table.
+
+    Returns:
+        The sub-table if it exists, otherwise an empty table.
+    """
     return _as_table(table.get(key, {}), f"{where}: {key}")
 
 
 def _list(table: dict[str, Any], key: str, where: str) -> list[Any]:
-    """Return an optional list."""
+    """Return an optional list.
+
+    Args:
+        table: The table to check.
+        key: The key to check.
+        where: The location of the table.
+
+    Returns:
+        The list if it exists, otherwise an empty list.
+
+    Raises:
+        ConfigError: If the value is not a list.
+    """
     value = table.get(key, [])
     if not isinstance(value, list):
         msg = f"{where}: {key} must be a list"
@@ -301,7 +409,19 @@ def _list(table: dict[str, Any], key: str, where: str) -> list[Any]:
 
 
 def _str_list(table: dict[str, Any], key: str, where: str) -> list[str]:
-    """Return an optional list of strings."""
+    """Return an optional list of strings.
+
+    Args:
+        table: The table to check.
+        key: The key to check.
+        where: The location of the table.
+
+    Returns:
+        The list of strings if it exists, otherwise an empty list.
+
+    Raises:
+        ConfigError: If the value is not a list of strings.
+    """
     value = _list(table, key, where)
     if not all(isinstance(v, str) for v in value):
         msg = f"{where}: {key} must be a list of strings"
@@ -310,7 +430,20 @@ def _str_list(table: dict[str, Any], key: str, where: str) -> list[str]:
 
 
 def _str(table: dict[str, Any], key: str, where: str, *, required: bool = False) -> Any:  # noqa: ANN401
-    """Return an optional (or required, non-empty) string."""
+    """Return an optional (or required, non-empty) string.
+
+    Args:
+        table: The table to check.
+        key: The key to check.
+        where: The location of the table.
+        required: Whether the string is required.
+
+    Returns:
+        The string if it exists, otherwise None.
+
+    Raises:
+        ConfigError: If the value is not a string or is empty when required.
+    """
     value = table.get(key)
     if value is None and not required:
         return None
@@ -321,7 +454,20 @@ def _str(table: dict[str, Any], key: str, where: str, *, required: bool = False)
 
 
 def _bool(table: dict[str, Any], key: str, where: str, *, default: bool) -> bool:
-    """Return an optional boolean."""
+    """Return an optional boolean.
+
+    Args:
+        table: The table to check.
+        key: The key to check.
+        where: The location of the table.
+        default: The default value if the key is not found.
+
+    Returns:
+        The boolean value if it exists, otherwise the default.
+
+    Raises:
+        ConfigError: If the value is not a boolean.
+    """
     value = table.get(key, default)
     if not isinstance(value, bool):
         msg = f"{where}: {key} must be true or false"

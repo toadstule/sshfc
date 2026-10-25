@@ -26,7 +26,12 @@ _FACILITY: Final = getattr(syslog, "LOG_AUTHPRIV", syslog.LOG_AUTH)
 
 
 def _syslog_emit(priority: int, message: str) -> None:
-    """Send a record to syslog."""
+    """Send a record to syslog.
+
+    Args:
+        priority: The syslog priority.
+        message: The message to send.
+    """
     syslog.openlog("sshfc", syslog.LOG_PID, _FACILITY)
     syslog.syslog(priority, message)
 
@@ -35,7 +40,13 @@ class AuditLog:
     """Writes audit records for one sshfc invocation."""
 
     def __init__(self, environ: Mapping[str, str], key_id: str | None = None, emit: Emitter | None = None) -> None:
-        """Initialize with the context common to every record of this invocation."""
+        """Initialize with the context common to every record of this invocation.
+
+        Args:
+            environ: The environment variables from the SSH session.
+            key_id: The ID of the SSH key used for authentication.
+            emit: The function to use for emitting audit records.
+        """
         self._emit = _syslog_emit if emit is None else emit
         client = environ.get("SSH_CONNECTION", "").split()  # "client_ip client_port server_ip server_port"
         self._context: dict[str, Any] = {
@@ -45,13 +56,25 @@ class AuditLog:
         }
 
     def rejected(self, *, source: str, command: str, reason: str, dry_run: bool) -> None:
-        """Record a rejected command."""
+        """Record a rejected command.
+
+        Args:
+            source: The source of the command (e.g., "authorized_keys").
+            command: The command that was rejected.
+            reason: The reason for the rejection.
+            dry_run: Whether the command was run in dry-run mode.
+        """
         self._log(syslog.LOG_WARNING, "rejected", source=source, command=command, reason=reason, dry_run=dry_run)
 
     def accepted(self, *, source: str, command: str, argv: Sequence[str], policy: str | None, dry_run: bool) -> None:
         """Record an accepted command (before it runs, so there's a record even if it never finishes).
 
-        ``policy`` names the policy file(s) that define the matched command.
+        Args:
+            source: The source of the command (e.g., "authorized_keys").
+            command: The command that was accepted.
+            argv: The arguments to the command.
+            policy: The policy file(s) that define the matched command.
+            dry_run: Whether the command was run in dry-run mode.
         """
         self._log(
             syslog.LOG_INFO,
@@ -64,18 +87,43 @@ class AuditLog:
         )
 
     def config_error(self, *, source: str, command: str, error: str, dry_run: bool) -> None:
-        """Record that the policy couldn't be loaded, so the command was rejected without being checked."""
+        """Record that the policy couldn't be loaded, so the command was rejected without being checked.
+
+        Args:
+            source: The source of the command (e.g., "authorized_keys").
+            command: The command that was rejected.
+            error: The error that occurred.
+            dry_run: Whether the command was run in dry-run mode.
+        """
         self._log(syslog.LOG_ERR, "config_error", source=source, command=command, error=error, dry_run=dry_run)
 
     def help_requested(self, *, source: str, command: str, dry_run: bool) -> None:
-        """Record a request for the overview, i.e. ``--help`` or ``-h`` as the whole command."""
+        """Record a request for the overview, i.e. ``--help`` or ``-h`` as the whole command.
+
+        Args:
+            source: The source of the command (e.g., "authorized_keys").
+            command: The command that was rejected.
+            dry_run: Whether the command was run in dry-run mode.
+        """
         self._log(syslog.LOG_INFO, "help", source=source, command=command, dry_run=dry_run)
 
     def exited(self, *, argv: Sequence[str], status: int, duration: float) -> None:
-        """Record an executed command's exit status and how long it ran."""
+        """Record an executed command's exit status and how long it ran.
+
+        Args:
+            argv: The arguments to the command.
+            status: The exit status of the command.
+            duration: The duration of the command in seconds.
+        """
         self._log(syslog.LOG_INFO, "exited", argv=list(argv), status=status, duration_s=round(duration, 3))
 
     def _log(self, priority: int, event: str, **fields: Any) -> None:  # noqa: ANN401
-        """Emit one record."""
+        """Emit one record.
+
+        Args:
+            priority: The syslog priority.
+            event: The event type.
+            fields: Additional fields to include in the record.
+        """
         record = {"event": event, **self._context, **fields}
         self._emit(priority, json.dumps(record, ensure_ascii=True, separators=(",", ":")))

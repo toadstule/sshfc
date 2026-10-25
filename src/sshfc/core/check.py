@@ -30,7 +30,15 @@ class CheckResult:
 
 
 def check_policy(path: Path, *, check_owners: bool = True) -> CheckResult:
-    """Check the policy at path, collecting every problem rather than stopping at the first."""
+    """Check the policy at path, collecting every problem rather than stopping at the first.
+
+    Args:
+        path: The path to the policy file or directory.
+        check_owners: Whether to check the ownership of the policy file or directory.
+
+    Returns:
+        A CheckResult object containing any errors or warnings.
+    """
     result = CheckResult()
     try:
         files = policy_files(path)
@@ -49,14 +57,22 @@ def check_policy(path: Path, *, check_owners: bool = True) -> CheckResult:
         result.errors.append(str(e))
         return result
 
-    if not result.policy.commands:
-        result.warnings.append(f"{path}: no commands defined; every command will be rejected")
-    result.errors.extend(run_examples(result.policy))
+    if result.policy is not None:
+        if not result.policy.commands:
+            result.warnings.append(f"{path}: no commands defined; every command will be rejected")
+        result.errors.extend(run_examples(result.policy))
     return result
 
 
 def run_examples(policy: Policy) -> list[str]:
-    """Run every accept/reject example against the whole policy; return a message for each failure."""
+    """Run every accept/reject example against the whole policy; return a message for each failure.
+
+    Args:
+        policy: The policy to check.
+
+    Returns:
+        A list of failure messages.
+    """
     failures: list[str] = []
     for where, command in _walk(policy.commands):
         top = where.split(" ", 1)[0]
@@ -88,7 +104,15 @@ def run_examples(policy: Policy) -> list[str]:
 
 
 def _starts_with(cmd_str: str, top: str) -> bool:
-    """Return whether a command line starts with the given top-level command name."""
+    """Return whether a command line starts with the given top-level command name.
+
+    Args:
+        cmd_str: The command line to check.
+        top: The top-level command name to check for.
+
+    Returns:
+        True if the command line starts with the given top-level command name, False otherwise.
+    """
     try:
         words = shlex.split(cmd_str)
     except ValueError:
@@ -97,7 +121,15 @@ def _starts_with(cmd_str: str, top: str) -> bool:
 
 
 def _walk(commands: Sequence[Command], path: str = "") -> Iterator[tuple[str, Command]]:
-    """Yield (path, command) for every command in the tree."""
+    """Yield (path, command) for every command in the tree.
+
+    Args:
+        commands: The commands to walk.
+        path: The current path.
+
+    Yields:
+        A tuple of (path, command).
+    """
     for command in commands:
         here = f"{path} {command.name}".strip()
         yield here, command

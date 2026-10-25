@@ -1,6 +1,7 @@
 #  Copyright (C) 2026 Stephen T. Jibson.
 #  SPDX-License-Identifier: MIT
 
+# noinspection GrazieInspection
 """CLI entrypoint for sshfc.
 
 sshfc's own arguments come from ``command="..."`` in authorized_keys (or ``ForceCommand`` in sshd_config), so they
@@ -69,7 +70,14 @@ _OVERVIEW_OUTRO: Final = "\nNeed something that isn't listed? Ask the administra
 
 
 def _parse_args(args: Sequence[str] | None) -> argparse.Namespace:
-    """Parse sshfc's own arguments."""
+    """Parse sshfc's own arguments.
+
+    Args:
+        args: The arguments to parse.
+
+    Returns:
+        The parsed arguments.
+    """
     parser = argparse.ArgumentParser(
         prog="sshfc",
         description="SSHfc: run an SSH user's requested command only if it is in the allowed command set.",
@@ -120,7 +128,12 @@ def _parse_args(args: Sequence[str] | None) -> argparse.Namespace:
 
 
 def main(args: Sequence[str] | None = None, environ: Mapping[str, str] | None = None) -> None:
-    """Validate the requested command, then run it (or, with --dry-run, show what would run)."""
+    """Validate the requested command, then run it (or, with --dry-run, show what would run).
+
+    Args:
+        args: The arguments to parse.
+        environ: The environment to use as a base.
+    """
     options = _parse_args(args)
     if options.samples is not None:
         raise SystemExit(_samples(options.samples))
@@ -194,7 +207,15 @@ def _command_paths(commands: Sequence[Command], parent: str = "") -> Iterator[tu
 
 
 def _check(path: Path, *, check_owners: bool) -> int:
-    """Check a policy, print the results, and return an exit status."""
+    """Check a policy, print the results, and return an exit status.
+
+    Args:
+        path: The path to check.
+        check_owners: Whether to check the owners of the files.
+
+    Returns:
+        The exit status.
+    """
     result = check_policy(path, check_owners=check_owners)
     for warning in result.warnings:
         print(f"warning: {warning}", file=sys.stderr)
@@ -209,7 +230,14 @@ def _check(path: Path, *, check_owners: bool) -> int:
 
 
 def _samples(name: str) -> int:
-    """List the sample policy files, or print one; return an exit status."""
+    """List the sample policy files, or print one; return an exit status.
+
+    Args:
+        name: The name of the sample to print.
+
+    Returns:
+        The exit status.
+    """
     samples = resources.files("sshfc") / "samples"
     files = sorted((f for f in samples.iterdir() if f.name.endswith(".toml")), key=lambda f: f.name)
     if not name:

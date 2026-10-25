@@ -17,7 +17,12 @@ class Pattern:
     """Validator that accepts a value only if it fully matches a regex."""
 
     def __init__(self, regex: str, description: str) -> None:
-        """Initialize the validator; ``description`` is shown to the SSH user when a value is rejected."""
+        """Initialize the validator; ``description`` is shown to the SSH user when a value is rejected.
+
+        Args:
+            regex: The regex to match against.
+            description: The description of the regex.
+        """
         self._regex = re.compile(regex)
         self._description = description
 
@@ -48,12 +53,18 @@ class GoTemplateFormat:
     The value returned to argparse is rebuilt from the parsed pieces, not the caller's original string.
     """
 
-    _PLACEHOLDER: Final = re.compile(r"\{\{\s*\.([A-Za-z][A-Za-z0-9]*)\s*\}\}")
+    _PLACEHOLDER: Final = re.compile(r"\{\{\s*\.([A-Za-z][A-Za-z0-9]*)\s*}}")
     _LITERAL: Final = re.compile(r"[A-Za-z0-9 \t:|,;=/._-]*")
     _TABLE_PREFIX: Final = re.compile(r"table\s+")
 
     def __init__(self, fields: Iterable[str], *, max_length: int = 256, max_fields: int = 16) -> None:
-        """Initialize the validator with the allowed field names and size limits."""
+        """Initialize the validator with the allowed field names and size limits.
+
+        Args:
+            fields: The allowed field names.
+            max_length: The maximum length of the format string.
+            max_fields: The maximum number of fields in the format string.
+        """
         self._fields = frozenset(fields)
         self._max_length = max_length
         self._max_fields = max_fields
@@ -99,7 +110,14 @@ class GoTemplateFormat:
         return prefix + "".join(parts)
 
     def _literal(self, text: str) -> str:
-        """Validate literal text between placeholders."""
+        """Validate literal text between placeholders.
+
+        Args:
+            text: The text to validate.
+
+        Returns:
+            The validated text.
+        """
         if not self._LITERAL.fullmatch(text):
             msg = (
                 f"invalid template text: {text!r} "
