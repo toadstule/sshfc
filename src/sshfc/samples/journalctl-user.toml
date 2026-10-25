@@ -1,0 +1,26 @@
+# User journal access policy
+
+[commands.journalctl]
+help = "Query the journal."
+run = "/usr/bin/journalctl"
+flags."--user" = { help = "Show the user journal for the current user", required = true}
+options."-n" = { help = "Number of journal entries to show (1-9999)", pattern = "^[1-9][0-9]{0,3}$",  description = "number must be between 1 and 9999" }
+options."-u" = { help = "Show logs from the specified unit", validator = "unit_name" }
+options."--since" = { help = "Show logs since this time", validator = "journalctl_date" }
+accept = [
+    "journalctl --user",
+    { command = "journalctl --user -n 100", argv = "/usr/bin/journalctl -n 100 --user"},
+    { command = "journalctl --user -n 10 -u my.service", argv = "/usr/bin/journalctl -n 10 -u my.service --user"},
+    { command = "journalctl --user --since yesterday", argv = "/usr/bin/journalctl --since yesterday --user"},
+    { command = "journalctl --user --since today", argv = "/usr/bin/journalctl --since today --user"},
+    { command = "journalctl --user --since 2024-01-15", argv = "/usr/bin/journalctl --since 2024-01-15 --user"},
+    { command = "journalctl --user --since=-1h", argv = "/usr/bin/journalctl --since -1h --user"},
+    { command = "journalctl --user --since=09:30", argv = "/usr/bin/journalctl --since 09:30 --user"},
+]
+reject = [
+    "journalctl -n 100",
+    "journalctl --user -n 100000",
+    "journalctl --user -n -1",
+    "journalctl --user -n abc",
+    "journalctl --user -f",
+]

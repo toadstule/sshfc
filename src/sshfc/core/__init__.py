@@ -10,16 +10,18 @@ building and checking command specs directly.
 from sshfc.core.config import ConfigError, Policy, load_policy
 from sshfc.core.parser import CommandRoot, InvalidCommandError, SpecError
 from sshfc.core.spec import Command, Flag, Option, Positional, Validator
-from sshfc.core.validators import CONTAINER_NAME, GoTemplateFormat, Pattern
+from sshfc.core.validators import CONTAINER_NAME, UNIT_NAME, GoTemplateFormat, JournalctlDate, Pattern
 
 __all__ = [
     "CONTAINER_NAME",
+    "UNIT_NAME",
     "Command",
     "CommandRoot",
     "ConfigError",
     "Flag",
     "GoTemplateFormat",
     "InvalidCommandError",
+    "JournalctlDate",
     "Option",
     "Pattern",
     "Policy",

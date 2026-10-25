@@ -184,7 +184,7 @@ def test_conflicting_definitions(tmp_path: Path) -> None:
         ),
         (
             '[commands.x]\nhelp = "X."\nrun = "/x"\noptions."--a" = { help = "A.", validator = "anything" }\n',
-            r"unknown validator 'anything' \(choose from container_name\)",
+            r"unknown validator 'anything' \(choose from container_name, journalctl_date, unit_name\)",
         ),
         (
             '[commands.x]\nhelp = "X."\nrun = "/x"\noptions."--a" = { help = "A.", pattern = "(" }\n',

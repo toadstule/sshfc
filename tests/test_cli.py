@@ -97,7 +97,7 @@ def test_execute(args: list[str], environ: dict[str, str], executed: list[list[s
     ("args", "environ", "expected"),
     [
         # Interactive login: no command at all.
-        ([], {}, r"required: command \(choose from hostname, podman, pwd, whoami\)"),
+        ([], {}, r"required: command \(choose from hostname, journalctl, podman, pwd, whoami\)"),
         (["--dry-run"], {"SSH_ORIGINAL_COMMAND": ""}, r"required: command"),
         ([], {"SSH_ORIGINAL_COMMAND": "rm -rf /"}, r"invalid choice: 'rm'"),
         (["-c", "podman stop 'web;id'"], {}, r"podman stop -- argument container: invalid value"),
@@ -263,7 +263,10 @@ def test_check_samples(capsys: pytest.CaptureFixture[str]) -> None:
         cli.main(["--check", "--insecure-config", "--config", str(SAMPLES)], {})
     assert exc_info.value.code == 0
     out = capsys.readouterr().out
-    assert out.startswith(f"OK: {SAMPLES} (3 file(s): podman-lifecycle.toml, podman-readonly.toml, system-info.toml)")
+    assert out.startswith(
+        f"OK: {SAMPLES} "
+        "(4 file(s): journalctl-user.toml, podman-lifecycle.toml, podman-readonly.toml, system-info.toml)"
+    )
 
 
 def test_check_reports_ownership(capsys: pytest.CaptureFixture[str]) -> None:

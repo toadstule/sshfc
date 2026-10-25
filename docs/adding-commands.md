@@ -146,10 +146,12 @@ Every option and positional needs **exactly one** validator. There is no "any st
 | Validator | Accepts |
 |---|---|
 | `validator = "container_name"` | A plain container, image or pod name or ID (letters, digits, `_`, `.`, `-`; up to 128 characters; starting with a letter or digit). Tags, digests, registry paths, and anything starting with `-` or `.` are rejected. |
+| `validator = "unit_name"` | A systemd unit name (e.g., `ssh.service`, `nginx@instance.service`). Valid characters are letters, digits, `:`, `_`, `-`, `.`, and `\`. Supports optional `@instance` syntax for template units. Must end with a valid unit type suffix (service, socket, device, mount, automount, swap, target, path, timer, slice, scope). Maximum 255 characters. |
+| `validator = "journalctl_date"` | A journalctl date/time format. Accepts absolute dates (`YYYY-MM-DD [HH:MM[:SS]]`), time only (`HH:MM[:SS]`), keywords (`yesterday`, `today`, `tomorrow`, `now`), and relative times (`-1h`, `30min ago`, etc.). Maximum 64 characters. |
 | `pattern = "<regex>", description = "..."` | Values that **fully** match the regex. `description` is required with `pattern`, and is shown when a value is rejected. It's not allowed with the other validators. |
 | `go_template = ["Field", ...]` | A restricted Go template for `--format`-style options (details below). The listed fields are added to the help text. |
 
-`container_name` is currently the only named validator. The other two kinds take their rules from the policy itself.
+`container_name`, `unit_name`, and `journalctl_date` are the named validators. The other two kinds take their rules from the policy itself.
 
 `pattern` is a regular expression matched against the whole value, so `dev|staging|prod` accepts exactly those three
 values. Anchors aren't needed.
