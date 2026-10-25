@@ -17,7 +17,7 @@ import sys
 import time
 from importlib import resources
 from pathlib import Path
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Final
 
 from sshfc.core.audit import AuditLog
 from sshfc.core.check import check_policy
@@ -26,17 +26,53 @@ from sshfc.core.executor import execute
 from sshfc.core.parser import InvalidCommandError
 
 if TYPE_CHECKING:
-    from collections.abc import Mapping, Sequence
+    from collections.abc import Iterator, Mapping, Sequence
+
+    from sshfc.core.spec import Command
 
 # Shown to the SSH user when the policy can't be loaded; the details go to the audit log only.
 _CONFIG_ERROR_MSG = "SSH command rejected: sshfc is misconfigured; contact the administrator"
+
+# Appended to the rejection for a login with no command.
+_HELP_HINT = ". Send --help for an overview of this environment and the available commands."
+
+# Shown to the SSH user for "--help" or "-h" as the whole command. The command list is appended by _overview().
+_OVERVIEW_INTRO: Final = """\
+sshfc: restricted command access
+
+This SSH account doesn't give you a shell. Each command is checked against an allowlist, and only the commands
+listed below can run. Anything else is rejected, with the reason.
+
+Send one command per connection, quoted as a single string:
+
+  ssh HOST "COMMAND [OPTIONS] [ARGUMENTS]"
+
+Nothing is interpreted by a shell. Pipes (|), redirects (>), ; and &&, variables ($HOME), and globs (*) are not special:
+they are rejected, or passed to the command as plain text if its rules allow it.
+
+Finding out more:
+
+  --help, -h     This message.
+  COMMAND -h     Help for a command or group: its subcommands, options, flags and arguments.
+                 For example, "podman -h" lists the podman subcommands, and "podman ps -h" shows the options for ps.
+
+Rules:
+
+  - A rejected command prints "SSH command rejected:" followed by the reason, and exits with status 1.
+  - Options must be spelled out as -h shows them. Abbreviations such as --for for --format are not accepted.
+  - Options and flags marked as required must be included.
+  - Otherwise, the exit status is the command's own.
+
+Available commands:
+"""
+_OVERVIEW_OUTRO: Final = "\nNeed something that isn't listed? Ask the administrator.\n"
 
 
 def _parse_args(args: Sequence[str] | None) -> argparse.Namespace:
     """Parse sshfc's own arguments."""
     parser = argparse.ArgumentParser(
         prog="sshfc",
-        description="Run an SSH user's requested command only if it is in the allowed command set.",
+        description="SSHfc: run an SSH user's requested command only if it is in the allowed command set.",
     )
     parser.add_argument(
         "--config",
@@ -75,7 +111,7 @@ def _parse_args(args: Sequence[str] | None) -> argparse.Namespace:
         nargs="?",
         const="",
         metavar="NAME",
-        help="List the sample policy files shipped with sshfc, or print one, then exit.",
+        help="List the sample policy files shipped with SSHfc, or print one, then exit.",
     )
     options = parser.parse_args(args)
     if options.insecure_config and not (options.dry_run or options.check):
@@ -109,11 +145,18 @@ def main(args: Sequence[str] | None = None, environ: Mapping[str, str] | None = 
         audit.config_error(source=source, command=cmd_str, error=str(e), dry_run=options.dry_run)
         raise SystemExit(_CONFIG_ERROR_MSG) from e
 
+    if _is_help_request(cmd_str):
+        audit.help_requested(source=source, command=cmd_str, dry_run=options.dry_run)
+        print(_overview(policy.commands), end="")
+        return
+
     try:
         argv, command = policy.root.parse_command(cmd_str)
     except InvalidCommandError as e:
-        audit.rejected(source=source, command=cmd_str, reason=str(e), dry_run=options.dry_run)
-        raise SystemExit(str(e)) from e
+        # With no command at all, point the user at the overview: the environment and the commands.
+        reason = f"{e}{_HELP_HINT}" if not cmd_str.strip() else str(e)
+        audit.rejected(source=source, command=cmd_str, reason=reason, dry_run=options.dry_run)
+        raise SystemExit(reason) from e
 
     audit.accepted(source=source, command=cmd_str, argv=argv, policy=command.source, dry_run=options.dry_run)
     if options.dry_run:
@@ -124,6 +167,30 @@ def main(args: Sequence[str] | None = None, environ: Mapping[str, str] | None = 
     status = execute(argv)
     audit.exited(argv=argv, status=status, duration=time.monotonic() - start)
     raise SystemExit(status)
+
+
+def _is_help_request(cmd_str: str) -> bool:
+    """Return whether the requested command is exactly ``--help`` or ``-h``."""
+    try:
+        return shlex.split(cmd_str) in (["-h"], ["--help"])
+    except ValueError:
+        return False
+
+
+def _overview(commands: Sequence[Command]) -> str:
+    """Return the overview shown for ``--help``: how the environment works, then every command path with its help."""
+    entries = list(_command_paths(commands))
+    width = max((len(path) for path, _ in entries), default=0)
+    listing = "".join(f"  {path:<{width}}  {help_}\n" for path, help_ in entries)
+    return _OVERVIEW_INTRO + listing + _OVERVIEW_OUTRO
+
+
+def _command_paths(commands: Sequence[Command], parent: str = "") -> Iterator[tuple[str, str]]:
+    """Yield (full command path, help) for every command in the tree, parents before their subcommands."""
+    for command in commands:
+        path = f"{parent} {command.name}".strip()
+        yield path, command.help
+        yield from _command_paths(command.subcommands, path)
 
 
 def _check(path: Path, *, check_owners: bool) -> int:
@@ -150,7 +217,7 @@ def _samples(name: str) -> int:
         for file in files:
             first_line = file.read_text().partition("\n")[0].removeprefix("#").strip()
             print(f"  {file.name:24} {first_line}")
-        print("\nCopy or symlink the ones you want into your policy directory, then run: sshfc --check")
+        print("\nCopy the ones you want into your policy directory, then run: sshfc --check")
         return 0
     for file in files:
         if name in {file.name, file.name.removesuffix(".toml")}:

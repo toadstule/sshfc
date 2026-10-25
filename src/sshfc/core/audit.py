@@ -67,6 +67,10 @@ class AuditLog:
         """Record that the policy couldn't be loaded, so the command was rejected without being checked."""
         self._log(syslog.LOG_ERR, "config_error", source=source, command=command, error=error, dry_run=dry_run)
 
+    def help_requested(self, *, source: str, command: str, dry_run: bool) -> None:
+        """Record a request for the overview, i.e. ``--help`` or ``-h`` as the whole command."""
+        self._log(syslog.LOG_INFO, "help", source=source, command=command, dry_run=dry_run)
+
     def exited(self, *, argv: Sequence[str], status: int, duration: float) -> None:
         """Record an executed command's exit status and how long it ran."""
         self._log(syslog.LOG_INFO, "exited", argv=list(argv), status=status, duration_s=round(duration, 3))

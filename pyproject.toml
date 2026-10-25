@@ -21,7 +21,7 @@ classifiers = [
     "Programming Language :: Python :: 3.14",
     "Topic :: Utilities"
 ]
-description = "Force command validator for SSH."
+description = "SSHfc: a command allowlist for SSH's ForceCommand."
 dependencies = []
 license = "MIT"
 license-files = ["LICENSE"]
@@ -34,7 +34,10 @@ version = "0.1.0"
 sshfc = "sshfc.cli:main"
 
 [project.urls]
-Repository = "https://github.com/toadstule/sshfc"
+Homepage = "https://github.com/toadstule/sshfc"
+Documentation = "https://github.com/toadstule/sshfc#readme"
+Source = "https://github.com/toadstule/sshfc"
+Issues = "https://github.com/toadstule/sshfc/issues"
 
 [tool.mypy]
 ignore_missing_imports = true

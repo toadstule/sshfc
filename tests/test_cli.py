@@ -14,7 +14,7 @@ import pytest
 import sshfc
 from sshfc import cli
 from sshfc.core.audit import AuditLog
-from sshfc.core.config import Policy, load_policy
+from sshfc.core.config import ConfigError, Policy, load_policy
 
 if TYPE_CHECKING:
     from collections.abc import Mapping, Sequence
@@ -110,6 +110,15 @@ def test_reject(args: list[str], environ: dict[str, str], expected: str, execute
     assert executed == []
 
 
+@pytest.mark.parametrize("environ", [{}, {"SSH_ORIGINAL_COMMAND": ""}])
+def test_no_command_points_to_help(environ: dict[str, str], audited: list[dict[str, Any]]) -> None:
+    """Test that a login with no command is rejected with a pointer to --help, in the message and the audit record."""
+    expected = r"^SSH command rejected: the following arguments are required: command \(choose from .*\)\. Send --help"
+    with pytest.raises(SystemExit, match=expected):
+        cli.main([], environ)
+    assert audited[0]["reason"].endswith("Send --help for an overview of this environment and the available commands.")
+
+
 def test_audit_rejected(audited: list[dict[str, Any]]) -> None:
     """Test that a rejected command is recorded with its source, raw command, and reason."""
     environ = {"SSH_ORIGINAL_COMMAND": "rm -rf /", "SSH_CONNECTION": "192.0.2.7 51234 198.51.100.1 22"}
@@ -158,6 +167,60 @@ def test_audit_policy_source(audited: list[dict[str, Any]]) -> None:
     cli.main(["--dry-run", "-c", "podman stop web-1"], {})
     cli.main(["--dry-run", "-c", "whoami"], {})
     assert [r["policy"] for r in audited] == ["podman-lifecycle.toml", "system-info.toml"]
+
+
+@pytest.mark.usefixtures("executed")
+@pytest.mark.parametrize(
+    ("args", "environ"),
+    [
+        ([], {"SSH_ORIGINAL_COMMAND": "--help"}),
+        ([], {"SSH_ORIGINAL_COMMAND": "-h"}),
+        ([], {"SSH_ORIGINAL_COMMAND": " --help "}),
+        (["--dry-run"], {"SSH_ORIGINAL_COMMAND": "--help"}),
+    ],
+)
+def test_help_overview(args: list[str], environ: dict[str, str], capsys: pytest.CaptureFixture[str]) -> None:
+    """Test that --help as the whole command prints the overview with every command path, and exits normally."""
+    cli.main(args, environ)  # No SystemExit: the overview is a normal, successful output.
+    out = capsys.readouterr().out
+    assert out.startswith("sshfc: restricted command access\n")
+    assert "Available commands:\n" in out
+    # The path is the first column of each listed command, separated from its help by two or more spaces.
+    listed = {line[2:].split("  ")[0] for line in out.partition("Available commands:\n")[2].splitlines() if line}
+    assert {"hostname", "podman", "podman inspect", "podman ps", "podman stats", "whoami"} <= listed
+
+
+def test_help_overview_runs_nothing(executed: list[list[str]], capsys: pytest.CaptureFixture[str]) -> None:
+    """Test that the overview is shown in place of a command, so nothing is run."""
+    cli.main([], {"SSH_ORIGINAL_COMMAND": "--help"})
+    assert capsys.readouterr().out
+    assert executed == []
+
+
+def test_help_overview_is_audited(audited: list[dict[str, Any]]) -> None:
+    """Test that a request for the overview is recorded as a help event."""
+    cli.main([], {"SSH_ORIGINAL_COMMAND": "--help"})
+    assert [(r["event"], r["source"], r["command"]) for r in audited] == [("help", "SSH_ORIGINAL_COMMAND", "--help")]
+
+
+def test_help_overview_needs_exact_match(capsys: pytest.CaptureFixture[str]) -> None:
+    """Test that anything other than exactly --help or -h isn't treated as a request for the overview."""
+    with pytest.raises(SystemExit, match=r"^SSH command rejected:"):
+        cli.main([], {"SSH_ORIGINAL_COMMAND": "'--help"})  # Unbalanced quote: not a help request, so rejected.
+    assert "sshfc: restricted command access" not in capsys.readouterr().out
+
+
+def test_help_overview_fails_closed(monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str]) -> None:
+    """Test that the overview isn't shown when the policy can't be loaded."""
+
+    def broken(path: Path, *, check_owners: bool = True) -> Policy:  # noqa: ARG001
+        msg = "broken policy"
+        raise ConfigError(msg)
+
+    monkeypatch.setattr(cli, "load_policy", broken)
+    with pytest.raises(SystemExit, match=r"^SSH command rejected: sshfc is misconfigured"):
+        cli.main([], {"SSH_ORIGINAL_COMMAND": "--help"})
+    assert capsys.readouterr().out == ""
 
 
 def test_default_and_explicit_config(policy_path: list[Path]) -> None:
