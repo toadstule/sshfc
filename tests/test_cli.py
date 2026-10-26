@@ -97,7 +97,7 @@ def test_execute(args: list[str], environ: dict[str, str], executed: list[list[s
     ("args", "environ", "expected"),
     [
         # Interactive login: no command at all.
-        ([], {}, r"required: command \(choose from hostname, journalctl, podman, pwd, whoami\)"),
+        ([], {}, r"required: command \(choose from cat, hostname, journalctl, ls, podman, pwd, systemctl, whoami\)"),
         (["--dry-run"], {"SSH_ORIGINAL_COMMAND": ""}, r"required: command"),
         ([], {"SSH_ORIGINAL_COMMAND": "rm -rf /"}, r"invalid choice: 'rm'"),
         (["-c", "podman stop 'web;id'"], {}, r"podman stop -- argument container: invalid value"),
@@ -265,7 +265,14 @@ def test_check_samples(capsys: pytest.CaptureFixture[str]) -> None:
     out = capsys.readouterr().out
     assert out.startswith(
         f"OK: {SAMPLES} "
-        "(4 file(s): journalctl-user.toml, podman-lifecycle.toml, podman-readonly.toml, system-info.toml)"
+        "(6 file(s): "
+        "files-readonly.toml, "
+        "journalctl-user.toml, "
+        "podman-lifecycle.toml, "
+        "podman-readonly.toml, "
+        "system-info.toml, "
+        "systemctl-user.toml"
+        ")"
     )
 
 
