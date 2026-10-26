@@ -34,10 +34,7 @@ if TYPE_CHECKING:
 # Shown to the SSH user when the policy can't be loaded; the details go to the audit log only.
 _CONFIG_ERROR_MSG = "SSH command rejected: sshfc is misconfigured; contact the administrator"
 
-# Appended to the rejection for a login with no command.
-_HELP_HINT = ". Send --help for an overview of this environment and the available commands."
-
-# Shown to the SSH user for "--help" or "-h" as the whole command. The command list is appended by _overview().
+# Shown to the SSH user for "help" as the whole command. The command list is appended by _overview().
 _OVERVIEW_INTRO: Final = """\
 sshfc: restricted command access
 
@@ -53,7 +50,7 @@ they are rejected, or passed to the command as plain text if its rules allow it.
 
 Finding out more:
 
-  --help, -h     This message.
+  help           This message.
   COMMAND -h     Help for a command or group: its subcommands, options, flags and arguments.
                  For example, "podman -h" lists the podman subcommands, and "podman ps -h" shows the options for ps.
 
@@ -158,7 +155,7 @@ def main(args: Sequence[str] | None = None, environ: Mapping[str, str] | None = 
         audit.config_error(source=source, command=cmd_str, error=str(e), dry_run=options.dry_run)
         raise SystemExit(_CONFIG_ERROR_MSG) from e
 
-    if _is_help_request(cmd_str):
+    if _is_help_request(cmd_str) or not cmd_str.strip():
         audit.help_requested(source=source, command=cmd_str, dry_run=options.dry_run)
         print(_overview(policy.commands), end="")
         return
@@ -166,10 +163,8 @@ def main(args: Sequence[str] | None = None, environ: Mapping[str, str] | None = 
     try:
         argv, command = policy.root.parse_command(cmd_str)
     except InvalidCommandError as e:
-        # With no command at all, point the user at the overview: the environment and the commands.
-        reason = f"{e}{_HELP_HINT}" if not cmd_str.strip() else str(e)
-        audit.rejected(source=source, command=cmd_str, reason=reason, dry_run=options.dry_run)
-        raise SystemExit(reason) from e
+        audit.rejected(source=source, command=cmd_str, reason=str(e), dry_run=options.dry_run)
+        raise SystemExit(str(e)) from e
 
     audit.accepted(source=source, command=cmd_str, argv=argv, policy=command.source, dry_run=options.dry_run)
     if options.dry_run:
@@ -183,9 +178,9 @@ def main(args: Sequence[str] | None = None, environ: Mapping[str, str] | None = 
 
 
 def _is_help_request(cmd_str: str) -> bool:
-    """Return whether the requested command is exactly ``--help`` or ``-h``."""
+    """Return whether the requested command is exactly ``help``."""
     try:
-        return shlex.split(cmd_str) in (["-h"], ["--help"])
+        return shlex.split(cmd_str) == ["help"]
     except ValueError:
         return False
 

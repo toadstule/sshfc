@@ -19,7 +19,7 @@ from sshfc.core.config import ConfigError, Policy, load_policy
 if TYPE_CHECKING:
     from collections.abc import Mapping, Sequence
 
-SAMPLES = Path(sshfc.__file__).parent / "samples"
+SAMPLES = Path(str(sshfc.__file__)).parent / "samples"
 
 
 @pytest.fixture(autouse=True)
@@ -27,10 +27,12 @@ def policy_path(monkeypatch: pytest.MonkeyPatch) -> list[Path]:
     """Load the shipped samples (without ownership checks) whatever --config says; record the paths requested."""
     requested: list[Path] = []
 
-    def fake_load_policy(path: Path, *, check_owners: bool = True) -> Policy:  # noqa: ARG001
+    def fake_load_policy(path: Path, *, check_owners: bool = True) -> Policy:
+        del check_owners  # unused
         requested.append(path)
         return load_policy(SAMPLES, check_owners=False)
 
+    # noinspection unresolved-references
     monkeypatch.setattr(cli, "load_policy", fake_load_policy)
     return requested
 
@@ -43,6 +45,7 @@ def audited(monkeypatch: pytest.MonkeyPatch) -> list[dict[str, Any]]:
     def make_log(environ: Mapping[str, str], key_id: str | None = None) -> AuditLog:
         return AuditLog(environ, key_id=key_id, emit=lambda _, m: records.append(json.loads(m)))
 
+    # noinspection unresolved-references
     monkeypatch.setattr(cli, "AuditLog", make_log)
     return records
 
@@ -56,6 +59,7 @@ def executed(monkeypatch: pytest.MonkeyPatch) -> list[list[str]]:
         calls.append(list(argv))
         return 3
 
+    # noinspection unresolved-references
     monkeypatch.setattr(cli, "execute", fake_execute)
     return calls
 
@@ -96,9 +100,6 @@ def test_execute(args: list[str], environ: dict[str, str], executed: list[list[s
 @pytest.mark.parametrize(
     ("args", "environ", "expected"),
     [
-        # Interactive login: no command at all.
-        ([], {}, r"required: command \(choose from cat, hostname, journalctl, ls, podman, pwd, systemctl, whoami\)"),
-        (["--dry-run"], {"SSH_ORIGINAL_COMMAND": ""}, r"required: command"),
         ([], {"SSH_ORIGINAL_COMMAND": "rm -rf /"}, r"invalid choice: 'rm'"),
         (["-c", "podman stop 'web;id'"], {}, r"podman stop -- argument container: invalid value"),
     ],
@@ -110,13 +111,19 @@ def test_reject(args: list[str], environ: dict[str, str], expected: str, execute
     assert executed == []
 
 
-@pytest.mark.parametrize("environ", [{}, {"SSH_ORIGINAL_COMMAND": ""}])
-def test_no_command_points_to_help(environ: dict[str, str], audited: list[dict[str, Any]]) -> None:
-    """Test that a login with no command is rejected with a pointer to --help, in the message and the audit record."""
-    expected = r"^SSH command rejected: the following arguments are required: command \(choose from .*\)\. Send --help"
-    with pytest.raises(SystemExit, match=expected):
-        cli.main([], environ)
-    assert audited[0]["reason"].endswith("Send --help for an overview of this environment and the available commands.")
+@pytest.mark.parametrize(
+    ("environ", "expected_source"),
+    [({}, "none"), ({"SSH_ORIGINAL_COMMAND": ""}, "SSH_ORIGINAL_COMMAND")],
+)
+def test_no_command_shows_help(
+    environ: dict[str, str], expected_source: str, audited: list[dict[str, Any]], capsys: pytest.CaptureFixture[str]
+) -> None:
+    """Test that a login with no command shows the help overview and is audited as a help event."""
+    cli.main([], environ)  # No SystemExit: the overview is a normal, successful output.
+    out = capsys.readouterr().out
+    assert out.startswith("sshfc: restricted command access\n")
+    assert "Available commands:\n" in out
+    assert [(r["event"], r["source"], r["command"]) for r in audited] == [("help", expected_source, "")]
 
 
 def test_audit_rejected(audited: list[dict[str, Any]]) -> None:
@@ -134,10 +141,9 @@ def test_audit_rejected(audited: list[dict[str, Any]]) -> None:
 
 
 def test_audit_interactive_login(audited: list[dict[str, Any]]) -> None:
-    """Test that a login with no command is recorded as a rejection with source 'none'."""
-    with pytest.raises(SystemExit):
-        cli.main([], {})
-    assert [(r["event"], r["source"], r["command"]) for r in audited] == [("rejected", "none", "")]
+    """Test that a login with no command is recorded as a help event with source 'none'."""
+    cli.main([], {})
+    assert [(r["event"], r["source"], r["command"]) for r in audited] == [("help", "none", "")]
 
 
 def test_audit_dry_run(audited: list[dict[str, Any]]) -> None:
@@ -173,14 +179,13 @@ def test_audit_policy_source(audited: list[dict[str, Any]]) -> None:
 @pytest.mark.parametrize(
     ("args", "environ"),
     [
-        ([], {"SSH_ORIGINAL_COMMAND": "--help"}),
-        ([], {"SSH_ORIGINAL_COMMAND": "-h"}),
-        ([], {"SSH_ORIGINAL_COMMAND": " --help "}),
-        (["--dry-run"], {"SSH_ORIGINAL_COMMAND": "--help"}),
+        ([], {"SSH_ORIGINAL_COMMAND": "help"}),
+        ([], {"SSH_ORIGINAL_COMMAND": " help "}),
+        (["--dry-run"], {"SSH_ORIGINAL_COMMAND": "help"}),
     ],
 )
 def test_help_overview(args: list[str], environ: dict[str, str], capsys: pytest.CaptureFixture[str]) -> None:
-    """Test that --help as the whole command prints the overview with every command path, and exits normally."""
+    """Test that help as the whole command prints the overview with every command path, and exits normally."""
     cli.main(args, environ)  # No SystemExit: the overview is a normal, successful output.
     out = capsys.readouterr().out
     assert out.startswith("sshfc: restricted command access\n")
@@ -192,34 +197,36 @@ def test_help_overview(args: list[str], environ: dict[str, str], capsys: pytest.
 
 def test_help_overview_runs_nothing(executed: list[list[str]], capsys: pytest.CaptureFixture[str]) -> None:
     """Test that the overview is shown in place of a command, so nothing is run."""
-    cli.main([], {"SSH_ORIGINAL_COMMAND": "--help"})
+    cli.main([], {"SSH_ORIGINAL_COMMAND": "help"})
     assert capsys.readouterr().out
     assert executed == []
 
 
 def test_help_overview_is_audited(audited: list[dict[str, Any]]) -> None:
     """Test that a request for the overview is recorded as a help event."""
-    cli.main([], {"SSH_ORIGINAL_COMMAND": "--help"})
-    assert [(r["event"], r["source"], r["command"]) for r in audited] == [("help", "SSH_ORIGINAL_COMMAND", "--help")]
+    cli.main([], {"SSH_ORIGINAL_COMMAND": "help"})
+    assert [(r["event"], r["source"], r["command"]) for r in audited] == [("help", "SSH_ORIGINAL_COMMAND", "help")]
 
 
 def test_help_overview_needs_exact_match(capsys: pytest.CaptureFixture[str]) -> None:
-    """Test that anything other than exactly --help or -h isn't treated as a request for the overview."""
+    """Test that anything other than exactly help isn't treated as a request for the overview."""
     with pytest.raises(SystemExit, match=r"^SSH command rejected:"):
-        cli.main([], {"SSH_ORIGINAL_COMMAND": "'--help"})  # Unbalanced quote: not a help request, so rejected.
+        cli.main([], {"SSH_ORIGINAL_COMMAND": "'help"})  # Unbalanced quote: not a help request, so rejected.
     assert "sshfc: restricted command access" not in capsys.readouterr().out
 
 
 def test_help_overview_fails_closed(monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str]) -> None:
     """Test that the overview isn't shown when the policy can't be loaded."""
 
-    def broken(path: Path, *, check_owners: bool = True) -> Policy:  # noqa: ARG001
+    def broken(path: Path, *, check_owners: bool = True) -> Policy:
+        del path, check_owners  # unused
         msg = "broken policy"
         raise ConfigError(msg)
 
+    # noinspection unresolved-references
     monkeypatch.setattr(cli, "load_policy", broken)
     with pytest.raises(SystemExit, match=r"^SSH command rejected: sshfc is misconfigured"):
-        cli.main([], {"SSH_ORIGINAL_COMMAND": "--help"})
+        cli.main([], {"SSH_ORIGINAL_COMMAND": "help"})
     assert capsys.readouterr().out == ""
 
 
@@ -235,10 +242,12 @@ def test_config_error(
 ) -> None:
     """Test that a policy that can't be loaded rejects everything, with details only in the audit log."""
 
-    def broken(path: Path, *, check_owners: bool = True) -> Policy:  # noqa: ARG001
+    def broken(path: Path, *, check_owners: bool = True) -> Policy:
+        del path, check_owners  # unused
         msg = "/etc/sshfc/commands.d/x.toml: must be owned by root"
         raise cli.ConfigError(msg)
 
+    # noinspection unresolved-references
     monkeypatch.setattr(cli, "load_policy", broken)
     with pytest.raises(SystemExit) as exc_info:
         cli.main([], {"SSH_ORIGINAL_COMMAND": "whoami"})
