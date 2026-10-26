@@ -1,0 +1,19 @@
+# Filesystem commands (read only)
+
+[commands.cat]
+help = "Concatenate files to standard output"
+run = "/usr/bin/cat"
+positionals = [{ name = "file", help = "the file to show", pattern = '^\.config/containers/systemd/[A-Za-z0-9][A-Za-z0-9._-]{0,255}$', description = "files must be in .config/containers/systemd" }]
+accept = [
+    { command = "cat .config/containers/systemd/my-app.container", argv = "/usr/bin/cat -- .config/containers/systemd/my-app.container" },
+]
+reject = [ "cat /etc/passwd" ]
+
+[commands.ls]
+help = "List information about files"
+run = "/usr/bin/ls"
+positionals = [{ name = "path", help = "the directory to list", pattern = '^\.config/containers/systemd$', description = "files must be in .config/containers/systemd" }]
+accept = [
+    { command = "ls .config/containers/systemd", argv = "/usr/bin/ls -- .config/containers/systemd" },
+]
+reject = [ "ls /etc" ]

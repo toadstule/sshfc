@@ -31,12 +31,15 @@ accept = [{ command = "podman pod inspect mypod", argv = "/usr/bin/podman pod in
 
 [commands."podman ps"]
 help = "List containers."
+flags."-a" = { help = "Show all the containers, default is only running containers" }
+flags."--all" = { help = "Show all the containers, default is only running containers" }
 accept = [
     { command = "podman ps", argv = "/usr/bin/podman ps" },
+    { command = "podman ps -a", argv = "/usr/bin/podman ps -a" },
     { command = "podman ps --format '{{.ID}}  {{.Image}}  {{.Labels}}  {{.Mounts}}'", argv = "/usr/bin/podman ps --format '{{.ID}}  {{.Image}}  {{.Labels}}  {{.Mounts}}'" },
     { command = "podman ps --format='{{ .ID }}'", argv = "/usr/bin/podman ps --format '{{.ID}}'" },
 ]
-reject = ["podman ps --all", "podman ps --format '{{.Command}}'", "podman ps --format '{{json .}}'"]
+reject = ["podman ps --format '{{.Command}}'", "podman ps --format '{{json .}}'"]
 
 # Deliberately excluded: Command (container args often carry secrets). Labels can hold secrets too (e.g. reverse-proxy
 # basic-auth hashes); remove it if that matters on your hosts.
@@ -59,6 +62,15 @@ go_template = [
     "State",
     "Status",
 ]
+
+[commands."podman secret"]
+help = "Manage podman secrets."
+
+[commands."podman secret ls"]
+help = "List podman secrets."
+accept = [{ command = "podman secret ls", argv = "/usr/bin/podman secret ls" }]
+reject = ["podman secret"]
+
 
 [commands."podman stats"]
 help = "Display container resource usage statistics."

@@ -1,0 +1,50 @@
+# User systemctl commands
+
+[commands."systemctl"]
+help = "Query or send control commands to the system manager."
+run = "/usr/bin/systemctl"
+
+[commands."systemctl daemon-reload"]
+help = "Reload systemd manager configuration"
+flags."--user" = { help = "Connect to the user service manager", required = true }
+accept = [
+    { command = "systemctl daemon-reload --user", argv = "/usr/bin/systemctl daemon-reload --user" },
+]
+reject = [ "systemctl daemon-reload" ]
+
+[commands."systemctl restart"]
+help = "Start or restart a unit."
+flags."--user" = { help = "Connect to the user service manager", required = true }
+positionals = [{ name = "unit", help = "the unit to restart", validator = "unit_name" }]
+accept = [
+    { command = "systemctl restart --user my.service", argv = "/usr/bin/systemctl restart --user -- my.service" },
+]
+reject = [ "systemctl start my.service" ]
+
+[commands."systemctl start"]
+help = "Start (activate) a unit."
+flags."--user" = { help = "Connect to the user service manager", required = true }
+positionals = [{ name = "unit", help = "the unit to start", validator = "unit_name" }]
+accept = [
+    { command = "systemctl start --user my.service", argv = "/usr/bin/systemctl start --user -- my.service" },
+]
+reject = [ "systemctl start my.service" ]
+
+[commands."systemctl status"]
+help = "Show runtime status of a unit."
+flags."--user" = { help = "Connect to the user service manager", required = true }
+flags."--no-pager" = { help = "Do not start a pager", required = true }
+positionals = [{ name = "unit", help = "the unit to query", validator = "unit_name" }]
+accept = [
+    { command = "systemctl status --user --no-pager my.service", argv = "/usr/bin/systemctl status --user --no-pager -- my.service" },
+]
+reject = [ "systemctl status my.service" ]
+
+[commands."systemctl stop"]
+help = "Stop (deactivate) a unit."
+flags."--user" = { help = "Connect to the user service manager", required = true }
+positionals = [{ name = "unit", help = "the unit to stop", validator = "unit_name" }]
+accept = [
+    { command = "systemctl stop --user my.service", argv = "/usr/bin/systemctl stop --user -- my.service" },
+]
+reject = [ "systemctl stop my.service" ]
