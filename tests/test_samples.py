@@ -34,7 +34,7 @@ def _walk(commands: Sequence[Command], path: str = "") -> Iterator[tuple[str, Co
 
 def test_all_samples_together() -> None:
     """Test that all the samples load together and every example holds against the merged policy."""
-    result = check_policy(SAMPLES, check_owners=False)
+    result = check_policy([SAMPLES], check_owners=False)
     assert result.errors == []
     assert result.warnings == []
 
@@ -43,7 +43,7 @@ def test_all_samples_together() -> None:
 def test_each_sample_alone(sample: Path, tmp_path: Path) -> None:
     """Test that each sample works on its own too, as when it's the only one dropped into a policy directory."""
     shutil.copy(sample, tmp_path)
-    policy = load_policy(tmp_path, check_owners=False)
+    policy = load_policy([tmp_path], check_owners=False)
     assert run_examples(policy) == []
 
     # Every command in a shipped sample should have help text and be covered by examples.

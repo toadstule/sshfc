@@ -33,17 +33,17 @@ def _write(directory: Path, name: str, content: str) -> Path:
 
 def _load(directory: Path) -> list[str]:
     """Load a policy and return its top-level command names."""
-    return [c.name for c in load_policy(directory, check_owners=False).commands]
+    return [c.name for c in load_policy([directory], check_owners=False).commands]
 
 
 def test_policy_files(tmp_path: Path) -> None:
     """Test that only *.toml files not starting with '.' are read, in sorted order."""
     for name in ["b.toml", "a.toml", ".hidden.toml", "c.toml~", "d.toml.rpmnew", "e.toml.dpkg-old", "README"]:
         (tmp_path / name).write_text("")
-    assert [p.name for p in policy_files(tmp_path)] == ["a.toml", "b.toml"]
-    assert policy_files(tmp_path / "a.toml") == [tmp_path / "a.toml"]
+    assert [p.name for p in policy_files([tmp_path])] == ["a.toml", "b.toml"]
+    assert policy_files([tmp_path / "a.toml"]) == [tmp_path / "a.toml"]
     with pytest.raises(ConfigError, match=r"no such file or directory"):
-        policy_files(tmp_path / "missing")
+        policy_files([tmp_path / "missing"])
 
 
 def test_full_example(tmp_path: Path) -> None:
@@ -76,7 +76,7 @@ def test_full_example(tmp_path: Path) -> None:
         positionals = [{ name = "thing", help = "A thing.", validator = "container_name" }]
         """,
     )
-    policy = load_policy(tmp_path, check_owners=False)
+    policy = load_policy([tmp_path], check_owners=False)
     tool = policy.commands[0]
     assert [c.name for c in tool.subcommands] == ["raw", "show"]
     show = tool.subcommands[1]
@@ -118,7 +118,7 @@ def test_shared_parent(tmp_path: Path) -> None:
     """Test that identical definitions in several files merge, with examples combined and both sources recorded."""
     _write(tmp_path, "a.toml", _PODMAN + 'reject = ["podman rm x"]\n[commands."podman ps"]\nhelp = "List."\n')
     _write(tmp_path, "b.toml", _PODMAN + '[commands."podman stop"]\nhelp = "Stop."\n')
-    podman = load_policy(tmp_path, check_owners=False).commands[0]
+    podman = load_policy([tmp_path], check_owners=False).commands[0]
     assert podman.source == "a.toml, b.toml"
     assert podman.reject == ["podman rm x"]
     assert [(c.name, c.source) for c in podman.subcommands] == [("ps", "a.toml"), ("stop", "b.toml")]
@@ -129,7 +129,7 @@ def test_conflicting_definitions(tmp_path: Path) -> None:
     _write(tmp_path, "a.toml", _PODMAN)
     _write(tmp_path, "b.toml", _PODMAN.replace("/usr/bin/podman", "/opt/podman"))
     with pytest.raises(ConfigError, match=r"commands\.'podman' is defined differently in a\.toml and b\.toml"):
-        load_policy(tmp_path, check_owners=False)
+        load_policy([tmp_path], check_owners=False)
 
 
 @pytest.mark.parametrize(
@@ -228,15 +228,30 @@ def test_invalid(tmp_path: Path, content: str, expected_error: str) -> None:
     """Test that malformed policies are rejected with an error naming the file and command."""
     _write(tmp_path, "p.toml", content)
     with pytest.raises(ConfigError, match=expected_error):
-        load_policy(tmp_path, check_owners=False)
+        load_policy([tmp_path], check_owners=False)
 
 
 def test_empty_policy(tmp_path: Path) -> None:
     """Test that an empty directory loads as a policy that rejects everything."""
-    policy = load_policy(tmp_path, check_owners=False)
+    policy = load_policy([tmp_path], check_owners=False)
     assert policy.commands == []
     with pytest.raises(InvalidCommandError):
         policy.root.parse("anything")
+
+
+def test_load_policy(tmp_path: Path) -> None:
+    """Test that load_policy can load from multiple paths."""
+    dir1 = tmp_path / "dir1"
+    dir2 = tmp_path / "dir2"
+    dir1.mkdir()
+    dir2.mkdir()
+
+    _write(dir1, "a.toml", '[commands.cmd1]\nhelp = "Command 1"\nrun = "/bin/cmd1"\n')
+    _write(dir2, "b.toml", '[commands.cmd2]\nhelp = "Command 2"\nrun = "/bin/cmd2"\n')
+
+    policy = load_policy([dir1, dir2], check_owners=False)
+    assert {c.name for c in policy.commands} == {"cmd1", "cmd2"}
+    assert len(policy.files) == 2
 
 
 def test_ownership(tmp_path: Path) -> None:
@@ -248,14 +263,14 @@ def test_ownership(tmp_path: Path) -> None:
     file.chmod(0o644)
     check_ownership(directory, me)
     check_ownership(file, me)
-    load_policy(directory, trusted_uids=me)
+    load_policy([directory], trusted_uids=me)
 
     with pytest.raises(ConfigError, match=r"p\.toml: must be owned by root"):
         check_ownership(file)
 
     file.chmod(0o664)
     with pytest.raises(ConfigError, match=r"p\.toml: must not be writable by group or others"):
-        load_policy(directory, trusted_uids=me)
+        load_policy([directory], trusted_uids=me)
     file.chmod(0o644)
 
     directory.chmod(0o777)
@@ -271,7 +286,7 @@ def test_ownership(tmp_path: Path) -> None:
     target.chmod(0o644)
     (directory / "link.toml").symlink_to(target)
     with pytest.raises(ConfigError, match=r"elsewhere: must not be writable by group or others"):
-        load_policy(directory, trusted_uids=me)
+        load_policy([directory], trusted_uids=me)
 
     with pytest.raises(ConfigError, match=r"missing\.toml: No such file or directory"):
         check_ownership(directory / "missing.toml", me)

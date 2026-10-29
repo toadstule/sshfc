@@ -72,14 +72,18 @@ class _Entry:
     reject: list[Any] = field(default_factory=list)
 
 
-def policy_files(path: Path) -> list[Path]:
-    """Return the policy files at path (a file, or a directory of ``*.toml`` files)."""
-    if path.is_dir():
-        return sorted(p for p in path.iterdir() if p.name.endswith(".toml") and not p.name.startswith("."))
-    if path.is_file():
-        return [path]
-    msg = f"{path}: no such file or directory"
-    raise ConfigError(msg)
+def policy_files(paths: list[Path]) -> list[Path]:
+    """Return the policy files at paths (each a file, or a directory of ``*.toml`` files)."""
+    files: list[Path] = []
+    for path in paths:
+        if path.is_dir():
+            files.extend(sorted(p for p in path.iterdir() if p.name.endswith(".toml") and not p.name.startswith(".")))
+        elif path.is_file():
+            files.append(path)
+        else:
+            msg = f"{path}: no such file or directory"
+            raise ConfigError(msg)
+    return files
 
 
 def check_ownership(path: Path, trusted_uids: Collection[int] = (_ROOT_UID,)) -> None:
@@ -108,20 +112,23 @@ def check_ownership(path: Path, trusted_uids: Collection[int] = (_ROOT_UID,)) ->
             raise ConfigError(msg)
 
 
-def load_policy(path: Path, *, check_owners: bool = True, trusted_uids: Collection[int] = (_ROOT_UID,)) -> Policy:
-    """Load, merge, and validate the policy at path; raise ConfigError on any problem.
+def load_policy(
+    paths: list[Path], *, check_owners: bool = True, trusted_uids: Collection[int] = (_ROOT_UID,)
+) -> Policy:
+    """Load, merge, and validate policies from multiple paths; raise ConfigError on any problem.
 
     Args:
-        path: The path to the policy file or directory.
-        check_owners: Whether to check the ownership of the policy file or directory.
+        paths: The paths to policy files or directories.
+        check_owners: Whether to check the ownership of the policy files or directories.
         trusted_uids: The UIDs that are considered trusted.
 
     Returns:
         The loaded policy.
     """
-    files = policy_files(path)
+    files = policy_files(paths)
     if check_owners:
-        check_ownership(path, trusted_uids)
+        for path in paths:
+            check_ownership(path, trusted_uids)
         for file in files:
             check_ownership(file, trusted_uids)
 

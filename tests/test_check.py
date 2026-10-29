@@ -32,7 +32,7 @@ def test_passing(tmp_path: Path) -> None:
         reject = ["x --all"]
         """,
     )
-    result = check_policy(tmp_path, check_owners=False)
+    result = check_policy([tmp_path], check_owners=False)
     assert result.errors == []
     assert result.warnings == []
 
@@ -50,7 +50,7 @@ def test_failing_examples(tmp_path: Path) -> None:
         reject = ["x", "y"]
         """,
     )
-    result = check_policy(tmp_path, check_owners=False)
+    result = check_policy([tmp_path], check_owners=False)
     assert result.errors == [
         (
             "a.toml: commands.'x': accept example 'x --all' was rejected: "
@@ -91,7 +91,7 @@ def test_other_file_widens_policy(tmp_path: Path) -> None:
         positionals = [{ name = "container", help = "Container.", validator = "container_name" }]
         """,
     )
-    result = check_policy(tmp_path, check_owners=False)
+    result = check_policy([tmp_path], check_owners=False)
     assert result.errors == [
         (
             "a.toml, b.toml: commands.'podman': reject example 'podman rm web-1' was accepted "
@@ -103,17 +103,17 @@ def test_other_file_widens_policy(tmp_path: Path) -> None:
 def test_load_error(tmp_path: Path) -> None:
     """Test that a policy that doesn't load is reported as an error."""
     _write(tmp_path, "a.toml", "[commands.x]\n")
-    result = check_policy(tmp_path, check_owners=False)
+    result = check_policy([tmp_path], check_owners=False)
     assert result.errors == ["a.toml: commands.'x': help must be a non-empty string"]
     assert result.policy is None
 
 
 def test_missing_and_empty(tmp_path: Path) -> None:
     """Test a missing policy (an error) and an empty one (a warning: everything is rejected)."""
-    assert check_policy(tmp_path / "missing", check_owners=False).errors == [
+    assert check_policy([tmp_path / "missing"], check_owners=False).errors == [
         f"{tmp_path / 'missing'}: no such file or directory"
     ]
-    result = check_policy(tmp_path, check_owners=False)
+    result = check_policy([tmp_path], check_owners=False)
     assert result.errors == []
     assert result.warnings == [f"{tmp_path}: no commands defined; every command will be rejected"]
 
@@ -121,7 +121,7 @@ def test_missing_and_empty(tmp_path: Path) -> None:
 def test_ownership_reported(tmp_path: Path) -> None:
     """Test that ownership problems are reported for the directory and each file (tests don't run as root)."""
     _write(tmp_path, "a.toml", '[commands.x]\nhelp = "X."\nrun = "/x"\n')
-    errors = check_policy(tmp_path).errors
+    errors = check_policy([tmp_path]).errors
     assert errors[0] == f"{tmp_path}: must be owned by root"
     assert errors[1] == f"{tmp_path / 'a.toml'}: must be owned by root"
 
@@ -138,7 +138,7 @@ def test_unbalanced_quotes_in_examples(tmp_path: Path) -> None:
         reject = ['x "unterminated', 'y "unterminated']
         """,
     )
-    result = check_policy(tmp_path, check_owners=False)
+    result = check_policy([tmp_path], check_owners=False)
     assert result.errors == [
         "a.toml: commands.'x': reject example 'y \"unterminated' must be a full command line from 'x'"
     ]
