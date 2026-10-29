@@ -27,10 +27,10 @@ def policy_path(monkeypatch: pytest.MonkeyPatch) -> list[Path]:
     """Load the shipped samples (without ownership checks) whatever --config says; record the paths requested."""
     requested: list[Path] = []
 
-    def fake_load_policy(path: Path, *, check_owners: bool = True) -> Policy:
+    def fake_load_policy(paths: list[Path], *, check_owners: bool = True) -> Policy:
         del check_owners  # unused
-        requested.append(path)
-        return load_policy(SAMPLES, check_owners=False)
+        requested.extend(paths)
+        return load_policy([SAMPLES], check_owners=False)
 
     # noinspection unresolved-references
     monkeypatch.setattr(cli, "load_policy", fake_load_policy)
@@ -218,8 +218,8 @@ def test_help_overview_needs_exact_match(capsys: pytest.CaptureFixture[str]) -> 
 def test_help_overview_fails_closed(monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str]) -> None:
     """Test that the overview isn't shown when the policy can't be loaded."""
 
-    def broken(path: Path, *, check_owners: bool = True) -> Policy:
-        del path, check_owners  # unused
+    def broken(paths: list[Path], *, check_owners: bool = True) -> Policy:
+        del paths, check_owners  # unused
         msg = "broken policy"
         raise ConfigError(msg)
 
@@ -237,13 +237,19 @@ def test_default_and_explicit_config(policy_path: list[Path]) -> None:
     assert policy_path == [Path("/etc/sshfc/commands.d"), Path("/srv/policy.toml")]
 
 
+def test_multiple_configs(policy_path: list[Path]) -> None:
+    """Test that multiple --config arguments are supported."""
+    cli.main(["--dry-run", "--config", "/srv/policy.toml", "--config", "/etc/sshfc/commands.d", "-c", "whoami"], {})
+    assert policy_path == [Path("/srv/policy.toml"), Path("/etc/sshfc/commands.d")]
+
+
 def test_config_error(
     monkeypatch: pytest.MonkeyPatch, audited: list[dict[str, Any]], executed: list[list[str]]
 ) -> None:
     """Test that a policy that can't be loaded rejects everything, with details only in the audit log."""
 
-    def broken(path: Path, *, check_owners: bool = True) -> Policy:
-        del path, check_owners  # unused
+    def broken(paths: list[Path], *, check_owners: bool = True) -> Policy:
+        del paths, check_owners  # unused
         msg = "/etc/sshfc/commands.d/x.toml: must be owned by root"
         raise cli.ConfigError(msg)
 

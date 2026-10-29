@@ -29,37 +29,43 @@ class CheckResult:
     policy: Policy | None = None
 
 
-def check_policy(path: Path, *, check_owners: bool = True) -> CheckResult:
-    """Check the policy at path, collecting every problem rather than stopping at the first.
+def check_policy(paths: list[Path], *, check_owners: bool = True) -> CheckResult:
+    """Check the policies at paths, collecting every problem rather than stopping at the first.
 
     Args:
-        path: The path to the policy file or directory.
-        check_owners: Whether to check the ownership of the policy file or directory.
+        paths: The paths to the policy files or directories.
+        check_owners: Whether to check the ownership of the policy files or directories.
 
     Returns:
         A CheckResult object containing any errors or warnings.
     """
     result = CheckResult()
     try:
-        files = policy_files(path)
+        files = policy_files(paths)
     except ConfigError as e:
         result.errors.append(str(e))
         return result
     if check_owners:
-        for checked in [path, *files]:
+        for path in paths:
             try:
-                check_ownership(checked)
+                check_ownership(path)
+            except ConfigError as e:
+                result.errors.append(str(e))
+        for file in files:
+            try:
+                check_ownership(file)
             except ConfigError as e:
                 result.errors.append(str(e))
     try:
-        result.policy = load_policy(path, check_owners=False)
+        result.policy = load_policy(paths, check_owners=False)
     except ConfigError as e:
         result.errors.append(str(e))
         return result
 
     if result.policy is not None:
         if not result.policy.commands:
-            result.warnings.append(f"{path}: no commands defined; every command will be rejected")
+            path_str = ", ".join(str(p) for p in paths)
+            result.warnings.append(f"{path_str}: no commands defined; every command will be rejected")
         result.errors.extend(run_examples(result.policy))
     return result
 

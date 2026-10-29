@@ -82,9 +82,12 @@ def _parse_args(args: Sequence[str] | None) -> argparse.Namespace:
     parser.add_argument(
         "--config",
         type=Path,
-        default=DEFAULT_PATH,
+        action="append",
         metavar="PATH",
-        help=f"Policy file, or directory of *.toml policy files (default: {DEFAULT_PATH}).",
+        help=(
+            f"Policy file, or directory of *.toml policy files (default: {DEFAULT_PATH}). "
+            "Can be specified multiple times."
+        ),
     )
     parser.add_argument(
         "--dry-run", action="store_true", help="Print the command that would run instead of running it."
@@ -119,6 +122,8 @@ def _parse_args(args: Sequence[str] | None) -> argparse.Namespace:
         help="List the sample policy files shipped with SSHfc, or print one, then exit.",
     )
     options = parser.parse_args(args)
+    if options.config is None:
+        options.config = [DEFAULT_PATH]
     if options.insecure_config and not (options.dry_run or options.check):
         parser.error("--insecure-config requires --dry-run or --check")
     return options
@@ -201,17 +206,17 @@ def _command_paths(commands: Sequence[Command], parent: str = "") -> Iterator[tu
         yield from _command_paths(command.subcommands, path)
 
 
-def _check(path: Path, *, check_owners: bool) -> int:
-    """Check a policy, print the results, and return an exit status.
+def _check(paths: list[Path], *, check_owners: bool) -> int:
+    """Check policies, print the results, and return an exit status.
 
     Args:
-        path: The path to check.
+        paths: The paths to check.
         check_owners: Whether to check the owners of the files.
 
     Returns:
         The exit status.
     """
-    result = check_policy(path, check_owners=check_owners)
+    result = check_policy(paths, check_owners=check_owners)
     for warning in result.warnings:
         print(f"warning: {warning}", file=sys.stderr)
     for error in result.errors:
@@ -220,7 +225,8 @@ def _check(path: Path, *, check_owners: bool) -> int:
         return 1
     assert result.policy is not None  # noqa: S101 -- no errors means the policy loaded.
     names = ", ".join(f.name for f in result.policy.files)
-    print(f"OK: {path} ({len(result.policy.files)} file(s): {names})")
+    path_str = ", ".join(str(p) for p in paths)
+    print(f"OK: {path_str} ({len(result.policy.files)} file(s): {names})")
     return 0
 
 
