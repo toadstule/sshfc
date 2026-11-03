@@ -3,10 +3,10 @@
 [commands.journalctl]
 help = "Query the journal."
 run = "/usr/bin/journalctl"
-flags."--user" = { help = "Show the user journal for the current user", required = true}
-options."-n" = { help = "Number of journal entries to show (1-9999)", pattern = "^[1-9][0-9]{0,3}$",  description = "number must be between 1 and 9999" }
-options."-u" = { help = "Show logs from the specified unit", validator = "unit_name" }
-options."--since" = { help = "Show logs since this time", validator = "journalctl_date" }
+flags."--user" = { help = "show the user journal for the current user", required = true}
+options."-n" = { help = "number of journal entries to show (1-9999)", pattern = "^[1-9][0-9]{0,3}$",  description = "number must be between 1 and 9999" }
+options."-u" = { help = "show logs from the specified unit", validator = "unit_name" }
+options."--since" = { help = "show logs since this time", validator = "journalctl_date" }
 accept = [
     "journalctl --user",
     { command = "journalctl --user -n 100", argv = "/usr/bin/journalctl -n 100 --user"},

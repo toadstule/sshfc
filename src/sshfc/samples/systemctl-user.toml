@@ -5,7 +5,7 @@ help = "Query or send control commands to the system manager."
 run = "/usr/bin/systemctl"
 
 [commands."systemctl daemon-reload"]
-help = "Reload systemd manager configuration"
+help = "Reload systemd manager configuration."
 flags."--user" = { help = "Connect to the user service manager", required = true }
 accept = [
     { command = "systemctl daemon-reload --user", argv = "/usr/bin/systemctl daemon-reload --user" },
