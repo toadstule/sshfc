@@ -1,4 +1,34 @@
-# Basic system information: hostname, pwd, whoami.
+# Basic system information: date, df, free, hostname, pwd, uname, uptime, whoami.
+
+[commands.date]
+help = "Print the system date and time."
+run = "/usr/bin/date"
+flags."--utc" = { help = "Coordinated Universal Time" }
+accept = [
+    { command = "date", argv = "/usr/bin/date" },
+    { command = "date --utc", argv = "/usr/bin/date --utc" },
+]
+reject = ["date --set"]
+
+[commands.df]
+help = "Report file system disk space usage."
+run = "/usr/bin/df"
+flags."--human-readable" = { help = "human-readable format" }
+accept = [
+    { command = "df", argv = "/usr/bin/df" },
+    { command = "df --human-readable", argv = "/usr/bin/df --human-readable" },
+]
+reject = ["df /etc/passwd"]
+
+[commands.free]
+help = "Display amount of free and used memory in the system."
+run = "/usr/bin/free"
+flags."--human" = { help = "show human-readable output" }
+accept = [
+    { command = "free", argv = "/usr/bin/free" },
+    { command = "free --human", argv = "/usr/bin/free --human" },
+]
+reject = ["free -s 1"]
 
 [commands.hostname]
 help = "Show the system's host name."
@@ -10,6 +40,30 @@ reject = ["hostname newname", "hostname -F /etc/shadow"]
 help = "Print the current working directory."
 run = "/usr/bin/pwd"
 accept = [{ command = "pwd", argv = "/usr/bin/pwd" }]
+
+[commands.uname]
+help = "Print system information."
+run = "/usr/bin/uname"
+flags."-a" = { help = "print all information" }
+flags."-r" = { help = "print the kernel release" }
+flags."-s" = { help = "print the kernel name" }
+accept = [
+    { command = "uname", argv = "/usr/bin/uname" },
+    { command = "uname -a", argv = "/usr/bin/uname -a" },
+    { command = "uname -r", argv = "/usr/bin/uname -r" },
+    { command = "uname -s", argv = "/usr/bin/uname -s" },
+]
+reject = ["uname --version"]
+
+[commands.uptime]
+help = "Tell how long the system has been running."
+run = "/usr/bin/uptime"
+flags."--pretty" = { help = "show uptime in pretty format" }
+accept = [
+    { command = "uptime", argv = "/usr/bin/uptime" },
+    { command = "uptime --pretty", argv = "/usr/bin/uptime --pretty" },
+]
+reject = ["uptime --raw"]
 
 [commands.whoami]
 help = "Print the user name associated with the current effective user ID."
