@@ -1,7 +1,7 @@
 # Filesystem commands (read only)
 
 [commands.cat]
-help = "Concatenate files to standard output"
+help = "Concatenate files to standard output."
 run = "/usr/bin/cat"
 positionals = [{ name = "file", help = "the file to show", pattern = '^\.config/containers/systemd/[A-Za-z0-9][A-Za-z0-9._-]{0,255}$', description = "files must be in .config/containers/systemd" }]
 accept = [
@@ -10,7 +10,7 @@ accept = [
 reject = [ "cat /etc/passwd" ]
 
 [commands.ls]
-help = "List information about files"
+help = "List information about files."
 run = "/usr/bin/ls"
 positionals = [{ name = "path", help = "the directory to list", pattern = '^\.config/containers/systemd$', description = "files must be in .config/containers/systemd" }]
 accept = [
